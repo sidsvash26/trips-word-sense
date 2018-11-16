@@ -51,12 +51,17 @@ def wnsense_to_tpsense(lst_wn_senses):
             
     return ans
 
-def combine_probs(lst):
+def combine_probs(lst, param="prob"):
     '''
     Input: lst of tuples: (trip_sense, prob)
             where there could be multiple instances
             of same trip_sense with different 
             probabilities
+            
+            param:
+            1. order: order the final list wrt to probabilities
+            2. wn_order: order the final list wrt to 
+                        wn_sense prob order
             
     Output: lst of tuples: (trip_sense, prob)
             with unique trip_sense where the different
@@ -71,20 +76,29 @@ def combine_probs(lst):
     
     ans = list(curr_dct.items())
     
-    return sorted(ans, key=lambda x: -x[1])
+    if param == "prob":
+        return sorted(ans, key=lambda x: -x[1])
+    elif param == "wn_order":
+        return ans
     
     
-def sent_to_trip_senses(text):
+def sent_to_trip_senses(text, prob="combine", order="prob"):
     '''
     Input: a string of words
     
-    Output: A 
+    prob: combine or raw
+    order: prob or wn_order
+    
+    Output: A list of trip senses for each word in the text
     '''
     ans = []
     sent_wn_senses = sent_to_wn_senses(text)
     
     for word_wn_senses in sent_wn_senses:
-        ans.append(combine_probs(wnsense_to_tpsense(word_wn_senses)))
-        
+        if prob=="combine":
+            ans.append(combine_probs(wnsense_to_tpsense(word_wn_senses), param=order))
+        elif prob=="raw":
+            ans.append(wnsense_to_tpsense(word_wn_senses))
     return ans
+    
     
