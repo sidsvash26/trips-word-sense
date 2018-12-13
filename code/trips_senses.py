@@ -51,17 +51,20 @@ def wnsense_to_tpsense(lst_wn_senses):
             
     return ans
 
-def combine_probs(lst, param="prob"):
+def combine_probs(lst, order="prob", param="sum"):
     '''
     Input: lst of tuples: (trip_sense, prob)
             where there could be multiple instances
             of same trip_sense with different 
             probabilities
             
-            param:
+            order:
             1. order: order the final list wrt to probabilities
             2. wn_order: order the final list wrt to 
                         wn_sense prob order
+            param:
+            1. sum
+            2. max
             
     Output: lst of tuples: (trip_sense, prob)
             with unique trip_sense where the different
@@ -71,18 +74,24 @@ def combine_probs(lst, param="prob"):
     '''
     curr_dct = defaultdict(float)
     
-    for trip_sense, prob in lst:
-        curr_dct[trip_sense] += prob
-    
+    if param=="sum":
+        for trip_sense, prob in lst:
+            curr_dct[trip_sense] += prob
+            
+    elif param=="max":
+        for trip_sense, prob in lst:
+            if prob > curr_dct[trip_sense]:
+                curr_dct[trip_sense] = prob
+                
     ans = list(curr_dct.items())
     
-    if param == "prob":
+    if order == "prob":
         return sorted(ans, key=lambda x: -x[1])
-    elif param == "wn_order":
+    elif order == "wn_order":
         return ans
     
     
-def sent_to_trip_senses(text, prob="combine", order="prob"):
+def sent_to_trip_senses(text, prob="combine", order="prob", param="sum"):
     '''
     Input: a string of words
     
@@ -96,7 +105,9 @@ def sent_to_trip_senses(text, prob="combine", order="prob"):
     
     for word_wn_senses in sent_wn_senses:
         if prob=="combine":
-            ans.append(combine_probs(wnsense_to_tpsense(word_wn_senses), param=order))
+            ans.append(combine_probs(wnsense_to_tpsense(word_wn_senses), 
+                                     order=order,
+                                    param=param))
         elif prob=="raw":
             ans.append(wnsense_to_tpsense(word_wn_senses))
     return ans
