@@ -9,6 +9,7 @@ Follow these steps to install all the dependencies required:
 	<ul>
 		<li>IMS - IMS_v0.9.2.1 </li>
 		<li>IMS - Models (WordNet 3.0) </li>
+	</ul>
 5. Create a directory named **ims** and unzip and extract the contents of **IMS - IMS_v0.9.2.1** into it.
 6. Put the unzipped model folder from 4. into the same directory **ims**
 7. Run `sudo chmod 755 testPlain.bash` from terminal when in the **ims** directory
