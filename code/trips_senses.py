@@ -1,28 +1,43 @@
+import pytrips
+from pytrips.ontology import load
+from collections import defaultdict
+ont = load()
+
+
+## Load WSD Systems:
+
+  #### SupWSD
+  #### SupWSD reference: http://www.aclweb.org/anthology/D17-2018
 import nltk
 from nltk.wsd import lesk
-from supwsd.wsd import SupWSD
-from genesis.tools import lextagger as LT
-from genesis.tools.trips import ontology as ont
-from collections import defaultdict
-
-## SupWSD reference: http://www.aclweb.org/anthology/D17-2018
+from supwsd.wsd import SupWSD  
 
 #### Sentence to wordnet senses ####
-def sent_to_wn_senses(sent, word=None):
+def sent_to_wn_senses(sent, system="wsd", ims_object = None, word=None):
     '''
     Input: sent: A string of words
     Output: list containining wordnet-senses of each word in the sent
             with respective probabilities of those senses
     '''
-    ans = []
-    sense_object = SupWSD().senses(sent,True)
-    for word in sense_object:
-        wordnet_sense_list = []
-        for result in word.results:
-            wordnet_sense_list.append([result.key, result.prob])
-        ans.append(wordnet_sense_list)
-        
-    return ans   
+    if system == "supwsd":
+        ans=[]
+        sense_object = SupWSD().senses(sent,True)
+        for word in sense_object:
+            wordnet_sense_list = []
+            for result in word.results:
+                wordnet_sense_list.append([result.key, result.prob])
+            ans.append(wordnet_sense_list)
+    elif system == "ims":
+        sense_list = ims_object.disambiguate(sent, probs=True, synsets=True)
+        ans = []
+        for word, dct in sense_list:
+            if dct:
+                wordnet_sense_list = [(synset.lemmas()[0].key(), prob) for synset, prob in dct.items()]
+                ans.append(wordnet_sense_list)
+            else:
+                ans.append([('U', 1.0)])
+       
+    return ans 
 
 ### Sentence to TRIP Senses ####
 def wnsense_to_tpsense(lst_wn_senses):
@@ -59,7 +74,7 @@ def combine_probs(lst, order="prob", param="sum"):
             probabilities
             
             order:
-            1. order: order the final list wrt to probabilities
+            1. prob: order the final list wrt to probabilities
             2. wn_order: order the final list wrt to 
                         wn_sense prob order
             param:
@@ -91,7 +106,7 @@ def combine_probs(lst, order="prob", param="sum"):
         return ans
     
     
-def sent_to_trip_senses(text, prob="combine", order="prob", param="sum"):
+def sent_to_trip_senses(text, system="wsd", prob="combine", order="prob", param="sum", ims_object=None):
     '''
     Input: a string of words
     
@@ -101,7 +116,7 @@ def sent_to_trip_senses(text, prob="combine", order="prob", param="sum"):
     Output: A list of trip senses for each word in the text
     '''
     ans = []
-    sent_wn_senses = sent_to_wn_senses(text)
+    sent_wn_senses = sent_to_wn_senses(text, system=system, ims_object=ims_object)
     
     for word_wn_senses in sent_wn_senses:
         if prob=="combine":
