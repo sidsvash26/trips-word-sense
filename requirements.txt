@@ -1,0 +1,4 @@
+supwsd
+pytrips
+pyims
+git+git://github.com/mrmechko/trips-web.git
