@@ -89,14 +89,17 @@ def combine_probs(lst, order="prob", param="sum"):
     '''
     curr_dct = defaultdict(float)
     
-    if param=="sum":
-        for trip_sense, prob in lst:
-            curr_dct[trip_sense] += prob
+    if type(param) is str:
+        if param=="sum":
+            for trip_sense, prob in lst:
+                curr_dct[trip_sense] += prob
             
-    elif param=="max":
-        for trip_sense, prob in lst:
-            if prob > curr_dct[trip_sense]:
-                curr_dct[trip_sense] = prob
+        elif param=="max":
+            for trip_sense, prob in lst:
+                if prob > curr_dct[trip_sense]:
+                    curr_dct[trip_sense] = prob
+    else:
+        curr_dct = param(lst)
                 
     ans = list(curr_dct.items())
     
