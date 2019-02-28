@@ -1,6 +1,6 @@
 from pyims import PyIMS
 from trips_senses import *
-from tripsweb.query import InputTag, wsd
+from tripsweb.query import InputTag, wsd as trips
 from genesis.tools.spacy import nlp # ugh
 import json
 
@@ -12,9 +12,19 @@ def extent(w):
     return (w.idx, w.idx + len(w)+1)
 
 def get_input_terms(sentence, url=None, verbose=True, dry=False):
-    sent = nlp(sentence)
     distribution = sent_to_trip_senses(sentence, system="ims", ims_object=wsd_ims, prob="combine", order="prob", param="sum")
-    items = zip(sent, distribution)
+    input_terms(sentence, distribution)
+    if dry:
+        print([str(i) for i in res])
+        return
+    parse = json.loads(trips(sentence, res, url, verbose)[0])
+    old_parse = json.loads(trips(sentence, [], url, verbose)[0])
+    if not sanity_checks(sent, parse, old_parse):
+        print(distribution)
+    return parse, dist
+
+def input_terms(sentence, distribution):
+    items = zip(nlp(sentence), distribution)
     res = []
     for s, dist in items:
         for d in dist:
@@ -22,15 +32,7 @@ def get_input_terms(sentence, url=None, verbose=True, dry=False):
                 continue
             start, end = extent(s)
             res.append(InputTag(str(s), start, end, str(d[0]), 1-d[1]))
-    if dry:
-        print([str(i) for i in res])
-        return
-    parse = json.loads(wsd(sentence, res, url, verbose)[0])
-    old_parse = json.loads(wsd(sentence, [], url, verbose)[0])
-    if not sanity_checks(sent, parse, old_parse):
-        print(distribution)
-    return parse, dist
-
+    return res
 
 def sanity_checks(sentence, parse, old_parse):
     parse_nodes = []
