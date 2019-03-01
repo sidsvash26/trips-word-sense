@@ -8,18 +8,7 @@ import json
 from genesis.tools.spacy import nlp
 from comb import Hint, Collapse
 from pyims import PyIMS
-
-
-def extent(w):
-    return (w.idx, w.idx + len(w)+1)
-
-def disassemble_parse(parse):
-    parse_nodes = []
-    for n in parse:
-        parse_nodes.extend(list(n.values()))
-    roots = [p for p in parse_nodes if type(p) is str]
-    parse_nodes = [p for p in parse_nodes if type(p) is dict]
-    return parse_nodes, roots
+from match_parse import match, disassemble_parse, Span, extent
 
 def input_terms(sentence, distribution):
     items = zip(nlp(sentence), distribution)
@@ -28,8 +17,8 @@ def input_terms(sentence, distribution):
         for d in dist.items():
             if not str(d[0]).startswith("ont::"):
                 continue
-            start, end = extent(s)
-            res.append(InputTag(str(s), start, end, str(d[0]), 1-d[1]))
+            span = extent(s)
+            res.append(InputTag(str(s), span.start, span.end, str(d[0]), 1-d[1]))
     return res
 
 def estr(x):
@@ -38,26 +27,43 @@ def estr(x):
     else:
         return "_None"
 
+def dict_diff(d1, d2):
+    res = {}
+    for k1, v1 in d1.items():
+        if k1 not in d2:
+            res[k1] = (v1, None)
+        elif d2[k1] != v1:
+            res[k1] = (v1, d2[k1])
+    for k2, v2 in d2.items():
+        if k2 not in d1:
+            res[k2] = (None, v2)
+    return res
+
 class EInstance:
     def __init__(self, sentence, experiment):
         self.sentence = sentence
         self.experiment = experiment
         self.ran = False
 
-    def is_changed(self):
+    def is_changed(self, explain=False):
         if not self.ran:
             self.run()
         plain = disassemble_parse(self.plain)[0]
         hints = disassemble_parse(self.hinted)[0]
-        p = set([estr(x['word'])+"."+x['type'] for x in plain if 'type' in x and 'word' in x])
-        h = set([estr(x['word'])+"."+x['type'] for x in hints if 'type' in x and 'word' in x])
-        common = p.intersection(h)
-        if common == p and common == h:
+        p = {estr(x['word']):x['type'] for x in plain if 'type' in x and 'word' in x}
+        h = {estr(x['word']):x['type'] for x in hints if 'type' in x and 'word' in x}
+        common = dict_diff(p, h)
+        if not common:
             return False
-        print(p - common)
-        print(h - common)
+        if explain:
+            self.examine(common)
         return True
-
+    
+    def examine(self, common):
+        for k, v in common.items():
+            print(str(k), ":", str(v[0]), "->", str(v[1]))
+        print(self.matched_plain)
+        print(self.plain)
 
     def run(self):
         # 1. parse plain
@@ -75,6 +81,11 @@ class EInstance:
         # 5. parse hinted
         #print(" ".join([str(h) for h in self.hints]))
         self.hinted = self.experiment.parse(self.sentence, self.hints)
+
+        # 5. a. align
+        sent = nlp(self.sentence)
+        self.matched_plain = match(sent, self.plain)
+        self.matched_hinted = match(sent, self.hinted)
 
         # 6. decode senses
 
@@ -99,7 +110,7 @@ def test(sentences, exp):
     data = [EInstance(sentence, exp) for sentence in sentences]
     for e in data:
         e.run()
-        print(e.is_changed(), e.sentence)
+        print(e.is_changed(explain=True), e.sentence)
 
     return data
 
