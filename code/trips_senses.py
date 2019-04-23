@@ -1,41 +1,52 @@
+## TRIPS
 import pytrips
 from pytrips.ontology import load
 from collections import defaultdict
 ont = load()
 
+## SupWSD
+from it.si3p.supwsd.api import SupWSD
+from it.si3p.supwsd.config import Model, Language
 
-## Load WSD Systems:
-
-  #### SupWSD
-  #### SupWSD reference: http://www.aclweb.org/anthology/D17-2018
+## Lesk
 import nltk
 from nltk.wsd import lesk
-from supwsd.wsd import SupWSD  
 
 #### Sentence to wordnet senses ####
-def sent_to_wn_senses(sent, system="wsd", ims_object = None, word=None):
+def sent_to_wn_senses(sent, system="supwsd", 
+                      ims_object = None, 
+                      word=None,
+                     supwsd_apikey=None):
     '''
     Input: sent: A string of words
     Output: list containining wordnet-senses of each word in the sent
             with respective probabilities of those senses
     '''
     if system == "supwsd":
-        ans=[]
-        sense_object = SupWSD().senses(sent,True)
-        for word in sense_object:
-            wordnet_sense_list = []
-            for result in word.results:
-                wordnet_sense_list.append([result.key, result.prob])
-            ans.append(wordnet_sense_list)
+        ans = []
+        for result in SupWSD(supwsd_apikey).disambiguate(sent, Language.EN, Model.SEMCOR, True):
+            token=result.token
+            if not result.miss():
+                sense_lst = []
+                for sense in result.senses:
+                    sense_lst.append((sense.id, sense.probability))
+
+                ans.append([token.word, sense_lst])
+            else:
+                ans.append([token.word, [(str(result.sense()), 1.0)]])
+                
+
     elif system == "ims":
         sense_list = ims_object.disambiguate(sent, probs=True, synsets=True)
         ans = []
         for word, dct in sense_list:
             if dct:
                 wordnet_sense_list = [(synset.lemmas()[0].key(), prob) for synset, prob in dct.items()]
-                ans.append(wordnet_sense_list)
+                ## Reorder with decreasing probability
+                wordnet_sense_list = sorted(wordnet_sense_list, key=lambda x: -x[1])
+                ans.append([word, wordnet_sense_list])
             else:
-                ans.append([('U', 1.0)])
+                ans.append([word, [('U', 1.0)]])
        
     return ans 
 
@@ -109,25 +120,25 @@ def combine_probs(lst, order="prob", param="sum"):
         return ans
     
     
-def sent_to_trip_senses(text, system="wsd", prob="combine", order="prob", param="sum", ims_object=None):
+def sent_to_trips_senses(text, system="wsd", prob="combine", order="prob", 
+                        param="sum", ims_object=None,
+                       supwsd_apikey = None):
     '''
     Input: a string of words
     
     prob: combine or raw
     order: prob or wn_order
     
-    Output: A list of trip senses for each word in the text
+    Output: A list of trips senses for each word in the text
     '''
     ans = []
-    sent_wn_senses = sent_to_wn_senses(text, system=system, ims_object=ims_object)
+    sent_wn_senses = sent_to_wn_senses(text, system=system, ims_object=ims_object, supwsd_apikey=supwsd_apikey)
     
-    for word_wn_senses in sent_wn_senses:
+    for word, word_wn_senses in sent_wn_senses:
         if prob=="combine":
-            ans.append(combine_probs(wnsense_to_tpsense(word_wn_senses), 
+            ans.append([word, combine_probs(wnsense_to_tpsense(word_wn_senses), 
                                      order=order,
-                                    param=param))
+                                    param=param)])
         elif prob=="raw":
-            ans.append(wnsense_to_tpsense(word_wn_senses))
+            ans.append([word, wnsense_to_tpsense(word_wn_senses)])
     return ans
-    
-    
